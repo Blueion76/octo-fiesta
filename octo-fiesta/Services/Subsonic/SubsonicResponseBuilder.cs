@@ -367,6 +367,23 @@ public class SubsonicResponseBuilder
     /// </summary>
     public object ConvertAlbumToJson(Album album)
     {
+		
+		var totalDuration = album.Songs?.Sum(s => s.Duration ?? 0) ?? 0;
+
+		var sortName = !string.IsNullOrEmpty(album.Title)
+			? album.Title.ToLowerInvariant()
+			: string.Empty;
+
+		var artists = new List<Dictionary<string, object>>();
+		if (!string.IsNullOrEmpty(album.ArtistId) && !string.IsNullOrEmpty(album.Artist))
+		{
+			artists.Add(new Dictionary<string, object>
+			{
+				["id"] = album.ArtistId,
+				["name"] = album.Artist
+			});
+		}		
+
         var result = new Dictionary<string, object>
         {
             ["id"] = album.Id,
@@ -374,6 +391,7 @@ public class SubsonicResponseBuilder
             ["artist"] = album.Artist ?? "",
             ["artistId"] = album.ArtistId ?? "",
             ["songCount"] = album.SongCount ?? 0,
+			["duration"] = totalDuration,
             ["year"] = album.Year ?? 0,
             ["created"] = System.DateTime.UtcNow.ToString("o"),
             ["isExternal"] = !album.IsLocal,
