@@ -346,4 +346,105 @@ public class SubsonicResponseBuilderTests
         Assert.Equal(0, albumData.GetProperty("songCount").GetInt32());
         Assert.Equal(0, albumData.GetProperty("duration").GetInt32());
     }
+
+    [Fact]
+    public void ConvertAlbumToJson_ExternalAlbum_IncludesAllOpenSubsonicAlbumID3Fields()
+    {
+        // Arrange
+        var album = new Album
+        {
+            Id = "ext-squidwtf-album-192576385",
+            Title = "Happier Than Ever",
+            Artist = "Billie Eilish",
+            ArtistId = "ext-squidwtf-artist-2cUlR50RVMP4dAUFB7ghi6",
+            Year = 2021,
+            SongCount = 16,
+            IsLocal = false,
+            CoverArtUrl = "https://example.com/cover.jpg",
+            ReleaseType = "ALBUM"
+        };
+    
+        // Act
+        var result = _builder.ConvertAlbumToJson(album);
+    
+        // Serialize to JSON to inspect all fields
+        var json = JsonSerializer.Serialize(result);
+        var doc = JsonDocument.Parse(json);
+    
+        // Assert - core fields
+        Assert.Equal("ext-squidwtf-album-192576385", doc.RootElement.GetProperty("id").GetString());
+        Assert.Equal("Happier Than Ever", doc.RootElement.GetProperty("name").GetString());
+        Assert.Equal("Billie Eilish", doc.RootElement.GetProperty("artist").GetString());
+        Assert.Equal("ext-squidwtf-artist-2cUlR50RVMP4dAUFB7ghi6", doc.RootElement.GetProperty("artistId").GetString());
+        Assert.Equal(2021, doc.RootElement.GetProperty("year").GetInt32());
+    
+        // Assert - OpenSubsonic AlbumID3 extension fields that Music Assistant requires
+        Assert.Equal(0, doc.RootElement.GetProperty("playCount").GetInt32());
+        Assert.Equal(0, doc.RootElement.GetProperty("userRating").GetInt32());
+        Assert.Equal(JsonValueKind.Array, doc.RootElement.GetProperty("genres").ValueKind);
+        Assert.Equal("", doc.RootElement.GetProperty("musicBrainzId").GetString());
+        Assert.Equal(false, doc.RootElement.GetProperty("isCompilation").GetBoolean());
+        Assert.Equal("happier than ever", doc.RootElement.GetProperty("sortName").GetString());
+        Assert.Equal(JsonValueKind.Array, doc.RootElement.GetProperty("discTitles").ValueKind);
+        Assert.Equal(JsonValueKind.Object, doc.RootElement.GetProperty("originalReleaseDate").ValueKind);
+        Assert.Equal(JsonValueKind.Object, doc.RootElement.GetProperty("releaseDate").ValueKind);
+        Assert.Equal(JsonValueKind.Array, doc.RootElement.GetProperty("recordLabels").ValueKind);
+        Assert.Equal(JsonValueKind.Array, doc.RootElement.GetProperty("moods").ValueKind);
+        Assert.Equal(JsonValueKind.Array, doc.RootElement.GetProperty("artists").ValueKind);
+        Assert.Equal("", doc.RootElement.GetProperty("explicitStatus").GetString());
+        Assert.Equal("", doc.RootElement.GetProperty("version").GetString());
+    }
+    
+    [Fact]
+    public void ConvertAlbumToJson_ExternalAlbum_ArtistsArrayContainsArtistEntry()
+    {
+        // Arrange
+        var album = new Album
+        {
+            Id = "ext-squidwtf-album-123",
+            Title = "Test Album",
+            Artist = "Test Artist",
+            ArtistId = "ext-squidwtf-artist-456",
+            IsLocal = false
+        };
+    
+        // Act
+        var result = _builder.ConvertAlbumToJson(album);
+        var json = JsonSerializer.Serialize(result);
+        var doc = JsonDocument.Parse(json);
+    
+        // Assert - artists array should have one entry matching the album artist
+        var artists = doc.RootElement.GetProperty("artists");
+        Assert.Equal(1, artists.GetArrayLength());
+        Assert.Equal("ext-squidwtf-artist-456", artists[0].GetProperty("id").GetString());
+        Assert.Equal("Test Artist", artists[0].GetProperty("name").GetString());
+    }
+    
+    [Fact]
+    public void ConvertAlbumToJson_LocalAlbum_StillIncludesExtensionFields()
+    {
+        // Local albums go through a different code path (proxied from Navidrome directly)
+        // but ConvertAlbumToJson is also called for local albums surfaced from external searches.
+        // Extension fields should always be present.
+        var album = new Album
+        {
+            Id = "local-album-123",
+            Title = "Local Album",
+            Artist = "Local Artist",
+            ArtistId = "local-artist-456",
+            IsLocal = true
+        };
+    
+        // Act
+        var result = _builder.ConvertAlbumToJson(album);
+        var json = JsonSerializer.Serialize(result);
+        var doc = JsonDocument.Parse(json);
+    
+        // Assert - all extension fields present regardless of IsLocal
+        Assert.True(doc.RootElement.TryGetProperty("playCount", out _));
+        Assert.True(doc.RootElement.TryGetProperty("genres", out _));
+        Assert.True(doc.RootElement.TryGetProperty("artists", out _));
+        Assert.True(doc.RootElement.TryGetProperty("sortName", out _));
+    }
+    
 }
