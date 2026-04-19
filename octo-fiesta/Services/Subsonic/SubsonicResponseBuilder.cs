@@ -379,6 +379,21 @@ public class SubsonicResponseBuilder
             ["isExternal"] = !album.IsLocal,
             ["displayArtist"] = album.Artist ?? "",
             ["releaseTypes"] = album.ReleaseType != null ? new List<string> { album.ReleaseType } : new List<string>(),
+            // OpenSubsonic AlbumID3 extension fields (required by strict clients like Music Assistant)
+            ["playCount"] = 0,
+            ["userRating"] = 0,
+            ["genres"] = new List<object>(),
+            ["musicBrainzId"] = "",
+            ["isCompilation"] = false,
+            ["sortName"] = sortName,
+            ["discTitles"] = new List<object>(),
+            ["originalReleaseDate"] = new Dictionary<string, object>(),
+            ["releaseDate"] = new Dictionary<string, object>(),
+            ["recordLabels"] = new List<object>(),
+            ["moods"] = new List<object>(),
+            ["artists"] = artists,
+            ["explicitStatus"] = "",
+            ["version"] = ""
         };
 
         // Only include coverArt if the album has a cover URL (avoids broken images)
@@ -387,6 +402,12 @@ public class SubsonicResponseBuilder
             result["coverArt"] = album.Id;
         }
 
+        // Include genre as singular field if available (OpenSubsonic keeps both)
+        if (!string.IsNullOrEmpty(album.Genre))
+        {
+            result["genre"] = album.Genre;
+        }
+        
         return result;
     }
 
@@ -505,6 +526,9 @@ public class SubsonicResponseBuilder
     public XElement ConvertAlbumToXml(Album album, XNamespace ns)
     {
         var totalDuration = album.Songs?.Sum(s => s.Duration ?? 0) ?? 0;
+        var sortName = !string.IsNullOrEmpty(album.Title) 
+            ? album.Title.ToLowerInvariant() 
+            : string.Empty;
         var element = new XElement(ns + "album",
             new XAttribute("id", album.Id),
             new XAttribute("name", album.Title),
@@ -515,7 +539,14 @@ public class SubsonicResponseBuilder
             new XAttribute("year", album.Year ?? 0),
             new XAttribute("created", System.DateTime.UtcNow.ToString("o")),
             new XAttribute("isExternal", (!album.IsLocal).ToString().ToLower()),
-            new XAttribute("displayArtist", album.Artist ?? "")
+            new XAttribute("displayArtist", album.Artist ?? ""),
+            new XAttribute("playCount", 0),
+            new XAttribute("userRating", 0),
+            new XAttribute("musicBrainzId", ""),
+            new XAttribute("isCompilation", "false"),
+            new XAttribute("sortName", sortName),
+            new XAttribute("explicitStatus", ""),
+            new XAttribute("version", "")
         );
 
         // Only include coverArt if the album has a cover URL (avoids broken images)
@@ -529,6 +560,21 @@ public class SubsonicResponseBuilder
             element.Add(new XAttribute("genre", album.Genre));
         }
 
+        // Add releaseTypes as child element (XML doesn't support arrays in attributes)
+        if (!string.IsNullOrEmpty(album.ReleaseType))
+        {
+            element.Add(new XElement(ns + "releaseTypes", album.ReleaseType));
+        }
+    
+        // Add artists child element
+        if (!string.IsNullOrEmpty(album.ArtistId) && !string.IsNullOrEmpty(album.Artist))
+        {
+            element.Add(new XElement(ns + "artists",
+                new XAttribute("id", album.ArtistId),
+                new XAttribute("name", album.Artist)
+            ));
+        }
+        
         return element;
     }
 
