@@ -236,6 +236,16 @@ public class SubsonicModelMapper
         }
         
         var artistId = $"curator-{playlist.Provider}-{playlist.CuratorName?.ToLowerInvariant().Replace(" ", "-") ?? "unknown"}";
+		var sortName = playlist.Name?.ToLowerInvariant() ?? string.Empty;
+
+		var artists = new List<Dictionary<string, object>>
+		{
+			new Dictionary<string, object>
+			{
+				["id"] = artistId,
+				["name"] = artistName
+			}
+		};
         
         var album = new Dictionary<string, object>
         {
@@ -246,7 +256,25 @@ public class SubsonicModelMapper
             ["genre"] = "Playlist",
             ["songCount"] = playlist.TrackCount,
             ["duration"] = playlist.Duration,
-            ["created"] = playlist.CreatedDate.HasValue ? playlist.CreatedDate.Value.ToUniversalTime().ToString("o") : System.DateTime.UtcNow.ToString("o")
+            ["created"] = playlist.CreatedDate.HasValue ? playlist.CreatedDate.Value.ToUniversalTime().ToString("o") : System.DateTime.UtcNow.ToString("o"),
+			["isExternal"] = true,
+			["displayArtist"] = artistName,
+			["releaseTypes"] = new List<string>(),
+			// OpenSubsonic AlbumID3 extension fields
+			["playCount"] = 0,
+			["userRating"] = 0,
+			["genres"] = new List<object>(),
+			["musicBrainzId"] = "",
+			["isCompilation"] = false,
+			["sortName"] = sortName,
+			["discTitles"] = new List<object>(),
+			["originalReleaseDate"] = new Dictionary<string, object>(),
+			["releaseDate"] = new Dictionary<string, object>(),
+			["recordLabels"] = new List<object>(),
+			["moods"] = new List<object>(),
+			["artists"] = artists,
+			["explicitStatus"] = "",
+			["version"] = ""
         };
         
         if (playlist.CreatedDate.HasValue)
